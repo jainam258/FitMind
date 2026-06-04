@@ -1,6 +1,6 @@
 # 🏋️‍♂️ FitMind
 
-FitMind is a Flutter-based fitness and wellness application designed for students and parents. The app helps users track health metrics, monitor fitness progress, maintain healthy habits, and stay motivated throughout their fitness journey.
+FitMind is a Flutter-based fitness and wellness application designed for students. The app helps users track health metrics, monitor fitness progress, maintain healthy habits, and stay motivated throughout their fitness journey.
 
 ## ✨ Features
 
