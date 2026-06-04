@@ -1,0 +1,45 @@
+name: fitmind
+description: A new Flutter project for student nutrition and health tracking.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  # Firebase dependencies
+  firebase_core: ^2.25.4
+  firebase_auth: ^4.17.4
+  cloud_firestore: ^4.17.5
+  video_player: ^2.9.2
+  fl_chart: ^0.66.2
+  excel: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.3
+  flutter_launcher_icons: ^0.13.1   # 👈 moved here (dev_dependencies)
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/30_day_meal_plan_6th_to_9th.xlsx
+    - assets/30_day_meal_plan_10th_to_12th.xlsx
+    - assets/30_day_vegetarian_meal_plan_boys_girls.xlsx
+    - assets/class4th_30days_meal.xlsx
+    - assets/class5th_30days_meal.xlsx
+    - assets/
+
+flutter_launcher_icons:             # 👈 correct key
+  android: true
+  ios: true
+  image_path: "assets/images/logo1.png"
+  min_sdk_android: 21
