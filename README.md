@@ -252,7 +252,7 @@ flutter run
 Add screenshot here:
 
 ```md
-![Splash Screen](screenshots/splash.png)
+![Splash Screen](screenshots/splshscreen.png)
 ```
 
 ---
@@ -262,7 +262,7 @@ Add screenshot here:
 Add screenshot here:
 
 ```md
-![Login Screen](screenshots/login.png)
+![Login Screen](screenshots/oginscreen.png)
 ```
 
 ---
@@ -272,7 +272,7 @@ Add screenshot here:
 Add screenshot here:
 
 ```md
-![Dashboard](screenshots/dashboard.png)
+![Dashboard](screenshots/home.png)
 ```
 
 ---
@@ -282,7 +282,7 @@ Add screenshot here:
 Add screenshot here:
 
 ```md
-![Workout Plans](screenshots/workout_plans.png)
+![Workout Plans](screenshots/workout plans.png)
 ```
 
 ---
@@ -292,7 +292,7 @@ Add screenshot here:
 Add screenshot here:
 
 ```md
-![Workout Details](screenshots/workout_detail.png)
+![Workout Details](screenshots/Home workout plan.png)
 ```
 
 ---
@@ -302,7 +302,7 @@ Add screenshot here:
 Add screenshot here:
 
 ```md
-![Meal Plan](screenshots/meal_plan.png)
+![Meal Plan](screenshots/mealPlan.png)
 ```
 
 ---
@@ -322,7 +322,7 @@ Add screenshot here:
 Add screenshot here:
 
 ```md
-![Notifications](screenshots/notifications.png)
+![Notifications](screenshots/notification page .png)
 ```
 
 ---
@@ -332,7 +332,7 @@ Add screenshot here:
 Add screenshot here:
 
 ```md
-![Profile](screenshots/profile.png)
+![Profile](screenshots/profile screen .png)
 ```
 
 ---
