@@ -248,8 +248,6 @@ flutter run
 
 ## Application Screenshots
 
-> Add your screenshots below.
-
 ### Authentication & Onboarding
 
 | Splash Screen                    | Login Screen                     |
