@@ -4,6 +4,7 @@ import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'meal_plan_screen.dart';
 import 'trackers_screen.dart';
+import 'workout_plans_screen.dart';
 
 // ── Design tokens (shared across all widgets in this file) ─────
 const _bg        = Color(0xFF0D0D0D);
@@ -33,7 +34,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   final List<Widget> _pages = const [
     TrackersScreen(),
     DashboardHome(),
-    NotificationsScreen(),
+    WorkoutPlansScreen(),
     MealPlanScreen(),
   ];
 
@@ -64,7 +65,7 @@ class _DarkBottomNav extends StatelessWidget {
   static const _items = [
     {"icon": Icons.track_changes_outlined, "label": "Trackers"},
     {"icon": Icons.home_outlined,          "label": "Home"},
-    {"icon": Icons.notifications_none,     "label": "Alerts"},
+    {"icon": Icons.fitness_center,         "label": "Workout"},
     {"icon": Icons.restaurant_menu,        "label": "Meal Plan"},
   ];
 
@@ -210,7 +211,7 @@ class DashboardHome extends StatelessWidget {
             const Text(
               "FIT MIND",
               style: TextStyle(
-                color: _white,
+                color: Colors.yellow,
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 3,
@@ -219,12 +220,40 @@ class DashboardHome extends StatelessWidget {
           ],
         ),
         actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 10),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _border),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.notifications_none_rounded,
+                color: _accent,
+                size: 20,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: GestureDetector(
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const ProfileScreen(),
+                ),
               ),
               child: Container(
                 width: 36,
@@ -234,7 +263,11 @@ class DashboardHome extends StatelessWidget {
                   borderRadius: BorderRadius.circular(11),
                   border: Border.all(color: _border),
                 ),
-                child: const Icon(Icons.person_outline, color: _muted, size: 20),
+                child: const Icon(
+                  Icons.person_outline,
+                  color: _muted,
+                  size: 20,
+                ),
               ),
             ),
           ),

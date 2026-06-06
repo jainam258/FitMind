@@ -12,8 +12,8 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
 
-  static const Color bgColor = Color(0xFF0B0F14);
-  static const Color cardColor = Color(0xFF151A22);
+  static const Color bgColor = Color(0xFF0D0D0D);
+  static const Color cardColor = Color(0xFF1E1E1E);
   static const Color primaryColor = Color(0xFFD9FF3F);
 
   final _formKey = GlobalKey<FormState>();

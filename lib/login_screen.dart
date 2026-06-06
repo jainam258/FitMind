@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -622,7 +621,6 @@ class _AnimatedYellowBackgroundState extends State<_AnimatedYellowBackground>
     with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late AnimationController _driftController;
-  late AnimationController _particleController;
 
   late Animation<double> _pulse1;
   late Animation<double> _pulse2;
@@ -631,8 +629,6 @@ class _AnimatedYellowBackgroundState extends State<_AnimatedYellowBackground>
   late Animation<double> _drift2x;
   late Animation<double> _drift2y;
 
-  final List<_Particle> _particles = [];
-  final Random _rng = Random();
 
   @override
   void initState() {
@@ -648,10 +644,6 @@ class _AnimatedYellowBackgroundState extends State<_AnimatedYellowBackground>
       duration: const Duration(seconds: 8),
     )..repeat(reverse: true);
 
-    _particleController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
 
     _pulse1 = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
@@ -672,18 +664,12 @@ class _AnimatedYellowBackgroundState extends State<_AnimatedYellowBackground>
     _drift2y = Tween<double>(begin: 30, end: -20).animate(
       CurvedAnimation(parent: _driftController, curve: Curves.easeInOut),
     );
-
-    // Spawn particles
-    for (int i = 0; i < 18; i++) {
-      _particles.add(_Particle.random(_rng));
-    }
-  }
+}
 
   @override
   void dispose() {
     _pulseController.dispose();
     _driftController.dispose();
-    _particleController.dispose();
     super.dispose();
   }
 
@@ -693,7 +679,7 @@ class _AnimatedYellowBackgroundState extends State<_AnimatedYellowBackground>
 
     return AnimatedBuilder(
       animation: Listenable.merge(
-          [_pulseController, _driftController, _particleController]),
+          [_pulseController, _driftController]),
       builder: (context, _) {
         return CustomPaint(
           size: size,
@@ -704,8 +690,6 @@ class _AnimatedYellowBackgroundState extends State<_AnimatedYellowBackground>
             drift1y: _drift1y.value,
             drift2x: _drift2x.value,
             drift2y: _drift2y.value,
-            particleProgress: _particleController.value,
-            particles: _particles,
           ),
         );
       },
@@ -713,35 +697,7 @@ class _AnimatedYellowBackgroundState extends State<_AnimatedYellowBackground>
   }
 }
 
-// ── Particle data ──────────────────────────────────────────────
-class _Particle {
-  final double x;      // 0..1 normalized
-  final double startY; // 0..1 normalized
-  final double size;
-  final double speed;  // 0..1 how fast it rises
-  final double opacity;
-  final double phase;  // offset so they don't all move together
 
-  _Particle({
-    required this.x,
-    required this.startY,
-    required this.size,
-    required this.speed,
-    required this.opacity,
-    required this.phase,
-  });
-
-  factory _Particle.random(Random rng) {
-    return _Particle(
-      x: rng.nextDouble(),
-      startY: rng.nextDouble(),
-      size: 2 + rng.nextDouble() * 4,
-      speed: 0.3 + rng.nextDouble() * 0.7,
-      opacity: 0.15 + rng.nextDouble() * 0.45,
-      phase: rng.nextDouble(),
-    );
-  }
-}
 
 // ── Custom painter ─────────────────────────────────────────────
 class _YellowGlowPainter extends CustomPainter {
@@ -751,8 +707,6 @@ class _YellowGlowPainter extends CustomPainter {
   final double drift1y;
   final double drift2x;
   final double drift2y;
-  final double particleProgress;
-  final List<_Particle> particles;
 
   static const _yellow = Color(0xFFE8F535);
 
@@ -763,8 +717,6 @@ class _YellowGlowPainter extends CustomPainter {
     required this.drift1y,
     required this.drift2x,
     required this.drift2y,
-    required this.particleProgress,
-    required this.particles,
   });
 
   @override
@@ -815,26 +767,6 @@ class _YellowGlowPainter extends CustomPainter {
       ).createShader(Rect.fromCircle(center: orb3Center, radius: orb3Radius));
     canvas.drawCircle(orb3Center, orb3Radius, orb3Paint);
 
-    // ── Rising particles ───────────────────────────────────────
-    for (final p in particles) {
-      // Each particle loops from bottom to top at its own speed/phase
-      final t = ((particleProgress * p.speed + p.phase) % 1.0);
-      final y = size.height * (1.0 - t); // rises upward
-      final x = size.width * p.x;
-
-      // Fade in at bottom, fade out at top
-      final fade = t < 0.15
-          ? t / 0.15
-          : t > 0.85
-          ? (1.0 - t) / 0.15
-          : 1.0;
-
-      final particlePaint = Paint()
-        ..color = _yellow.withOpacity(p.opacity * fade)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-
-      canvas.drawCircle(Offset(x, y), p.size * fade, particlePaint);
-    }
 
     // ── ECG / heartbeat line at bottom ─────────────────────────
     //_drawHeartbeatLine(canvas, size);

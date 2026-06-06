@@ -10,8 +10,8 @@ class TrackersScreen extends StatefulWidget {
 }
 
 class _TrackersScreenState extends State<TrackersScreen> {
-  static const Color bgColor = Color(0xFF0B0F14);
-  static const Color cardColor = Color(0xFF151A22);
+  static const Color bgColor = Color(0xFF0D0D0D);
+  static const Color cardColor = Color(0xFF1E1E1E);
   static const Color primaryColor = Color(0xFFD9FF3F);
   static const Color textMuted = Color(0xFF8B949E);
 
@@ -368,7 +368,7 @@ class _TrackersScreenState extends State<TrackersScreen> {
         backgroundColor: Colors.transparent,
         centerTitle: true,
         title: const Text(
-          "FIT MIND Tracker",
+          "Tracker your Day",
           style: TextStyle(
             color: primaryColor,
             fontWeight: FontWeight.bold,

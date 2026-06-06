@@ -65,7 +65,7 @@ class _SplashScreenState
             end: Alignment.bottomRight,
             colors: [
               Color(0xFF0B0F14),
-              Color(0xFF111827),
+              Color(0xFF0D0D0D),
               Color(0xFF0B0F14),
             ],
           ),
@@ -168,7 +168,7 @@ class _SplashScreenState
                   LinearProgressIndicator(
                     minHeight: 5,
                     backgroundColor:
-                    Color(0xFF1E2530),
+                    Color(0xFF0D0D0D),
                     valueColor:
                     AlwaysStoppedAnimation(
                       Color(0xFFD9FF3F),

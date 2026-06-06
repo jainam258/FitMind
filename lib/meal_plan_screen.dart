@@ -25,8 +25,8 @@ class MealPlanScreen extends StatefulWidget {
 }
 
 class _MealPlanScreenState extends State<MealPlanScreen> {
-  static const Color bgColor = Color(0xFF0B0F14);
-  static const Color cardColor = Color(0xFF151A22);
+  static const Color bgColor = Color(0xFF0D0D0D);
+  static const Color cardColor = Color(0xFF1E1E1E);
   static const Color primaryColor = Color(0xFFD9FF3F);
   static const Color textMuted = Color(0xFF8B949E);
 
@@ -192,7 +192,7 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
           title: const Text(
             "Meal Planner",
             style: TextStyle(
-              color: Colors.white,
+              color: primaryColor,
               fontWeight: FontWeight.w800,
               fontSize: 18,
             ),
