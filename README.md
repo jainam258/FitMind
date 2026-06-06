@@ -247,95 +247,53 @@ flutter run
 
 # 📸 Screenshots
 
-## Splash Screen
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="screenshots/splshscreen.png" width="220"/><br>
+      <b>Splash Screen</b>
+    </td>
+    <td align="center">
+      <img src="screenshots/loginscreen.png" width="220"/><br>
+      <b>Login Screen</b>
+    </td>
+    <td align="center">
+      <img src="screenshots/home.png" width="220"/><br>
+      <b>Home Dashboard</b>
+    </td>
+    
+  </tr>
 
-Add screenshot here:
+  <tr>
+    <td align="center">
+      <img src="screenshots/workout plans.png" width="220"/><br>
+      <b>Workout Plans</b>
+    </td>
+    <td align="center">
+      <img src="screenshots/Home workout plan.png" width="220"/><br>
+      <b>Workout Details</b>
+    </td>
+    <td align="center">
+      <img src="screenshots/mealPlan.png" width="220"/><br>
+      <b>Meal Plan</b>
+    </td>
+  </tr>
 
-
-![Splash Screen](screenshots/splshscreen.png)
-
-
----
-
-## Login Screen
-
-Add screenshot here:
-
-
-![Login Screen](screenshots/oginscreen.png)
-
-
----
-
-## Home Dashboard
-
-Add screenshot here:
-
-
-![Dashboard](screenshots/home.png)
-
-
----
-
-## Workout Plans
-
-Add screenshot here:
-
-
-![Workout Plans](screenshots/workout plans.png)
-
-
----
-
-## Workout Details
-
-Add screenshot here:
-
-
-![Workout Details](screenshots/Home workout plan.png)
-
-
----
-
-## Meal Plan
-
-Add screenshot here:
-
-
-![Meal Plan](screenshots/mealPlan.png)
-
-
----
-
-## Trackers
-
-Add screenshot here:
-
-
-![Trackers](screenshots/trackers.png)
-
-
----
-
-## Notifications
-
-Add screenshot here:
-
-
-![Notifications](screenshots/notification page .png)
-
-
----
-
-## Profile
-
-Add screenshot here:
-
-
-![Profile](screenshots/profile screen .png)
-
-
----
+  <tr>
+     <td align="center">
+      <img src="screenshots/trackers.png" width="220"/><br>
+      <b>Trackers</b>
+    </td>
+    <td align="center">
+      <img src="screenshots/notification page .png" width="220"/><br>
+      <b>Notifications</b>
+    </td>
+    <td align="center">
+      <img src="screenshots/profile screen .png" width="220"/><br>
+      <b>Profile</b>
+    </td>
+  </tr>
+</table>
 
 # 🔮 Future Improvements
 
