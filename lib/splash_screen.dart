@@ -1,18 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'student_dashboard.dart';
+import 'parent_dashboard.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() =>
-      _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState
-    extends State<SplashScreen>
+class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-
   late AnimationController _controller;
   late Animation<double> _scale;
 
@@ -39,13 +41,63 @@ class _SplashScreenState
 
     Timer(
       const Duration(seconds: 3),
-          () {
-        Navigator.pushReplacementNamed(
-          context,
-          "/intro",
-        );
-      },
+      _navigateAfterSplash,
     );
+  }
+
+  Future<void> _navigateAfterSplash() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection("users")
+            .doc(user.uid)
+            .get();
+
+        if (doc.exists) {
+          final role = doc.get("role") ?? "student";
+          if (role == "parent") {
+            if (context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const ParentDashboard()),
+              );
+            }
+          } else {
+            if (context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const StudentDashboard()),
+              );
+            }
+          }
+          return;
+        }
+      } catch (e) {
+        debugPrint("Error checking user role: $e");
+      }
+    }
+
+    // Check SharedPreferences for last intro date
+    final prefs = await SharedPreferences.getInstance();
+    final String? lastIntroDate = prefs.getString('last_intro_date');
+    
+    final DateTime now = DateTime.now();
+    final String today = '${now.year}-${now.month}-${now.day}';
+
+    if (lastIntroDate != today) {
+      // Haven't shown intro today. Update date and show intro.
+      await prefs.setString('last_intro_date', today);
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, "/intro");
+      }
+    } else {
+      // Already shown today. Skip to login.
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, "/login");
+      }
+    }
   }
 
   @override
@@ -80,10 +132,8 @@ class _SplashScreenState
               );
             },
             child: Column(
-              mainAxisAlignment:
-              MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-
                 Container(
                   width: 140,
                   height: 140,
@@ -107,22 +157,18 @@ class _SplashScreenState
                         color: const Color(
                           0xFF151A22,
                         ),
-                        borderRadius:
-                        BorderRadius.circular(
+                        borderRadius: BorderRadius.circular(
                           30,
                         ),
                       ),
                       child: ClipRRect(
-                        borderRadius:
-                        BorderRadius.circular(
+                        borderRadius: BorderRadius.circular(
                           30,
                         ),
                         child: Image.asset(
                           "assets/images/logo3.png",
                           fit: BoxFit.cover,
-                          errorBuilder:
-                              (_, __, ___) =>
-                          const Icon(
+                          errorBuilder: (_, __, ___) => const Icon(
                             Icons.fitness_center,
                             color: Color(
                               0xFFD9FF3F,
@@ -134,43 +180,32 @@ class _SplashScreenState
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 35),
-
                 const Text(
                   "FITMIND",
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 34,
-                    fontWeight:
-                    FontWeight.w900,
+                    fontWeight: FontWeight.w900,
                     letterSpacing: 8,
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
                 Text(
                   "TRACK • TRAIN • TRANSFORM",
                   style: TextStyle(
-                    color: Colors.white
-                        .withOpacity(0.6),
+                    color: Colors.white.withOpacity(0.6),
                     fontSize: 12,
                     letterSpacing: 3,
                   ),
                 ),
-
                 const SizedBox(height: 50),
-
                 const SizedBox(
                   width: 150,
-                  child:
-                  LinearProgressIndicator(
+                  child: LinearProgressIndicator(
                     minHeight: 5,
-                    backgroundColor:
-                    Color(0xFF0D0D0D),
-                    valueColor:
-                    AlwaysStoppedAnimation(
+                    backgroundColor: Color(0xFF0D0D0D),
+                    valueColor: AlwaysStoppedAnimation(
                       Color(0xFFD9FF3F),
                     ),
                   ),

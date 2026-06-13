@@ -1,6 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pedometer/pedometer.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:liquid_progress_indicator_v2/liquid_progress_indicator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TrackersScreen extends StatefulWidget {
   const TrackersScreen({super.key});
@@ -9,371 +15,135 @@ class TrackersScreen extends StatefulWidget {
   State<TrackersScreen> createState() => _TrackersScreenState();
 }
 
-class _TrackersScreenState extends State<TrackersScreen> {
+class _TrackersScreenState extends State<TrackersScreen> with SingleTickerProviderStateMixin {
   static const Color bgColor = Color(0xFF0D0D0D);
   static const Color cardColor = Color(0xFF1E1E1E);
-  static const Color primaryColor = Color(0xFFD9FF3F);
+  static const Color primaryColor = Color(0xFFE8F535);
   static const Color textMuted = Color(0xFF8B949E);
+  
+  late TabController _tabController;
 
-  // ── Stat Card without borders ──────────────────────────────────
-  Widget statCard(String title, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0, top: 0, bottom: 0,
-            child: Container(
-              width: 3,
-              decoration: BoxDecoration(
-                color: primaryColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: primaryColor, size: 26),
-                const SizedBox(height: 8),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: textMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Pedometer State
+  Stream<StepCount>? _stepCountStream;
+  int _baselineSteps = 0;
+  int _todayLiveSteps = 0;
+  String _pedometerStatus = 'unknown';
 
-  // ── Styled Bezier Chart with touch tooltips and no borders ─────
-  Widget buildChart(List<FlSpot> data, String title, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: primaryColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 180,
-            child: data.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No data yet. Log some workouts!",
-                      style: TextStyle(color: textMuted, fontSize: 13),
-                    ),
-                  )
-                : LineChart(
-                    LineChartData(
-                      lineTouchData: LineTouchData(
-                        touchTooltipData: LineTouchTooltipData(
-                          tooltipBgColor: const Color(0xFF1E2530),
-                          tooltipRoundedRadius: 8,
-                          getTooltipItems: (touchedSpots) {
-                            return touchedSpots.map((spot) {
-                              return LineTooltipItem(
-                                spot.y.toStringAsFixed(0),
-                                const TextStyle(
-                                  color: primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              );
-                            }).toList();
-                          },
-                        ),
-                      ),
-                      backgroundColor: Colors.transparent,
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        getDrawingHorizontalLine: (value) => const FlLine(
-                          color: Colors.white10,
-                          strokeWidth: 0.8,
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (value, meta) {
-                              int idx = value.toInt();
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  "Log ${idx + 1}",
-                                  style: const TextStyle(
-                                    color: textMuted,
-                                    fontSize: 9,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 34,
-                            getTitlesWidget: (value, meta) {
-                              return Text(
-                                value.toStringAsFixed(0),
-                                style: const TextStyle(
-                                  color: textMuted,
-                                  fontSize: 9,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: data,
-                          isCurved: true,
-                          color: primaryColor,
-                          barWidth: 3.5,
-                          dotData: const FlDotData(show: true),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                primaryColor.withOpacity(0.18),
-                                primaryColor.withOpacity(0.01),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
-  // ── Logging dialog ─────────────────────────────────────────────
-  void _showAddLogDialog(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    final workoutTypeController = TextEditingController();
-    final stepsController = TextEditingController();
-    final caloriesController = TextEditingController();
-    final workoutMinutesController = TextEditingController();
-    final waterController = TextEditingController();
-    bool isSaving = false;
+  CollectionReference get _fitnessLogsRef =>
+      FirebaseFirestore.instance.collection('users').doc(_uid).collection('fitness_logs');
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0F1319),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
-                ),
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: formKey,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Log Fitness Activity ⚡",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        
-                        // Workout type field
-                        _buildDialogField("Workout Type (e.g. Walking, Run)", workoutTypeController, Icons.fitness_center),
-                        _buildDialogField("Steps Count", stepsController, Icons.directions_walk, keyboard: TextInputType.number),
-                        _buildDialogField("Calories Burned (kcal)", caloriesController, Icons.local_fire_department, keyboard: TextInputType.number),
-                        _buildDialogField("Workout Duration (min)", workoutMinutesController, Icons.timer_outlined, keyboard: TextInputType.number),
-                        _buildDialogField("Water Intake (L)", waterController, Icons.water_drop_outlined, keyboard: const TextInputType.numberWithOptions(decimal: true)),
-                        
-                        const SizedBox(height: 24),
-                        
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: isSaving ? null : () async {
-                              if (!formKey.currentState!.validate()) return;
-                              setDialogState(() => isSaving = true);
-                              try {
-                                final now = DateTime.now();
-                                await FirebaseFirestore.instance.collection('fitness_logs').add({
-                                  'steps': int.tryParse(stepsController.text.trim()) ?? 0,
-                                  'caloriesBurned': int.tryParse(caloriesController.text.trim()) ?? 0,
-                                  'workoutMinutes': int.tryParse(workoutMinutesController.text.trim()) ?? 0,
-                                  'waterIntake': double.tryParse(waterController.text.trim()) ?? 0.0,
-                                  'workoutType': workoutTypeController.text.trim().isNotEmpty
-                                      ? workoutTypeController.text.trim()
-                                      : 'Workout',
-                                  'date': '${now.day}/${now.month}/${now.year}',
-                                  'timestamp': FieldValue.serverTimestamp(),
-                                });
-                                if (mounted) {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("🎉 Fitness log recorded successfully!"),
-                                      backgroundColor: cardColor,
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Error: $e")),
-                                );
-                              } finally {
-                                if (mounted) setDialogState(() => isSaving = false);
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            child: isSaving
-                                ? const SizedBox(
-                                    width: 20, height: 20,
-                                    child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-                                  )
-                                : const Text("Save Log", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  CollectionReference get _mealLogsRef =>
+      FirebaseFirestore.instance.collection('users').doc(_uid).collection('meal_logs');
 
-  Widget _buildDialogField(String label, TextEditingController controller, IconData icon, {TextInputType keyboard = TextInputType.text}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B222C),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboard,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          icon: Icon(icon, color: primaryColor, size: 20),
-          hintText: label,
-          hintStyle: const TextStyle(color: textMuted, fontSize: 14),
-          border: InputBorder.none,
-        ),
-        validator: (val) {
-          if (val == null || val.isEmpty) {
-            return "Please enter $label";
-          }
-          return null;
-        },
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _initPedometer();
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // --- PEDOMETER LOGIC ---
+  Future<void> _initPedometer() async {
+    if (await Permission.activityRecognition.request().isGranted) {
+      final prefs = await SharedPreferences.getInstance();
+      final today = "${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}";
+      final storedDate = prefs.getString("step_date");
+
+      _stepCountStream = Pedometer.stepCountStream;
+      _stepCountStream?.listen((event) {
+        if (storedDate != today) {
+           prefs.setString("step_date", today);
+           prefs.setInt("baseline_steps", event.steps);
+           _baselineSteps = event.steps;
+        } else {
+           _baselineSteps = prefs.getInt("baseline_steps") ?? event.steps;
+        }
+        if (mounted) {
+          setState(() {
+            _todayLiveSteps = event.steps - _baselineSteps;
+            if (_todayLiveSteps < 0) _todayLiveSteps = 0;
+            _pedometerStatus = 'tracking';
+          });
+        }
+      }, onError: (error) {
+        debugPrint("Pedometer Error: $error");
+        if (mounted) {
+          setState(() => _pedometerStatus = 'unavailable');
+        }
+      });
+    } else {
+      if (mounted) {
+        setState(() => _pedometerStatus = 'permission_denied');
+      }
+    }
+  }
+
+  // --- DATES FOR CHARTS ---
+  String get _todayDateStr {
+    final now = DateTime.now();
+    return '${now.day}/${now.month}/${now.year}';
+  }
+
+  List<String> get _last7DaysStrings {
+    final now = DateTime.now();
+    return List.generate(7, (i) {
+      final day = now.subtract(Duration(days: 6 - i));
+      return '${day.day}/${day.month}/${day.year}';
+    });
+  }
+
+  List<String> get _last7DayLabels {
+    final now = DateTime.now();
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return List.generate(7, (i) {
+      final day = now.subtract(Duration(days: 6 - i));
+      return dayNames[day.weekday - 1];
+    });
+  }
+
+  // --- UI BUILDING ---
+  @override
   Widget build(BuildContext context) {
+    if (_uid == null) {
+      return const Scaffold(
+        backgroundColor: bgColor,
+        body: Center(
+          child: Text("Please login to view your trackers", style: TextStyle(color: Colors.white)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: bgColor,
         centerTitle: true,
         title: const Text(
-          "Tracker your Day",
-          style: TextStyle(
-            color: primaryColor,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
-          ),
+          "Trackers",
+          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, letterSpacing: 1),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: primaryColor,
+          labelColor: primaryColor,
+          unselectedLabelColor: textMuted,
+          isScrollable: true,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          tabs: const [
+            Tab(text: "Steps"),
+            Tab(text: "Calories"),
+            Tab(text: "Water"),
+            Tab(text: "Protein"),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -383,161 +153,386 @@ class _TrackersScreenState extends State<TrackersScreen> {
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('fitness_logs').orderBy('timestamp', descending: false).snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(color: primaryColor),
-            );
-          }
+        stream: _fitnessLogsRef.orderBy('timestamp', descending: false).snapshots(),
+        builder: (context, fitnessSnapshot) {
+          return StreamBuilder<QuerySnapshot>(
+            stream: _mealLogsRef.orderBy('timestamp', descending: false).snapshots(),
+            builder: (context, mealSnapshot) {
+              if (!fitnessSnapshot.hasData || !mealSnapshot.hasData) {
+                return const Center(child: CircularProgressIndicator(color: primaryColor));
+              }
 
-          final docs = snapshot.data!.docs;
+              final fitnessDocs = fitnessSnapshot.data!.docs;
+              final mealDocs = mealSnapshot.data!.docs;
 
-          List<FlSpot> stepsData = [];
-          List<FlSpot> caloriesData = [];
-          List<FlSpot> workoutData = [];
-          List<FlSpot> waterData = [];
+              final last7Days = _last7DaysStrings;
+              final dayLabels = _last7DayLabels;
 
-          num totalSteps = 0;
-          num totalCalories = 0;
-          num totalWorkout = 0;
-          double totalWater = 0;
+              // Parse Data arrays
+              List<FlSpot> stepsData = [];
+              List<FlSpot> caloriesData = [];
+              List<FlSpot> waterData = [];
+              List<FlSpot> proteinData = [];
 
-          for (int i = 0; i < docs.length; i++) {
-            final data = docs[i].data() as Map<String, dynamic>;
+              double todayWater = 0;
+              double todayCalories = 0;
+              double todayProtein = 0;
 
-            final steps = (data['steps'] ?? 0).toDouble();
-            final calories = (data['caloriesBurned'] ?? 0).toDouble();
-            final workout = (data['workoutMinutes'] ?? 0).toDouble();
-            final water = (data['waterIntake'] ?? 0).toDouble();
+              for (int i = 0; i < 7; i++) {
+                String date = last7Days[i];
+                double dailySteps = 0, dailyCals = 0, dailyWater = 0, dailyProtein = 0;
 
-            stepsData.add(FlSpot(i.toDouble(), steps));
-            caloriesData.add(FlSpot(i.toDouble(), calories));
-            workoutData.add(FlSpot(i.toDouble(), workout));
-            waterData.add(FlSpot(i.toDouble(), water));
+                // Fitness
+                for (var doc in fitnessDocs) {
+                  final d = doc.data() as Map<String, dynamic>;
+                  if (d['date'] == date) {
+                    dailySteps += (d['steps'] ?? 0);
+                    dailyCals += (d['caloriesBurned'] ?? 0);
+                    dailyWater += (d['waterIntake'] ?? 0);
+                  }
+                }
+                // Meals
+                for (var doc in mealDocs) {
+                  final d = doc.data() as Map<String, dynamic>;
+                  if (d['date'] == date) {
+                    dailyProtein += (d['protein'] ?? 0);
+                  }
+                }
 
-            totalSteps += steps.toInt();
-            totalCalories += calories.toInt();
-            totalWorkout += workout.toInt();
-            totalWater += water;
-          }
+                stepsData.add(FlSpot(i.toDouble(), dailySteps));
+                caloriesData.add(FlSpot(i.toDouble(), dailyCals));
+                waterData.add(FlSpot(i.toDouble(), dailyWater));
+                proteinData.add(FlSpot(i.toDouble(), dailyProtein));
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // extra padding at bottom for FAB
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Your Fitness Dashboard",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 16),
+                if (i == 6) { // Today
+                  todayWater = dailyWater;
+                  todayCalories = dailyCals;
+                  todayProtein = dailyProtein;
+                }
+              }
 
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.35,
-                  children: [
-                    statCard("Steps", totalSteps.toString(), Icons.directions_walk),
-                    statCard("Calories", totalCalories.toString(), Icons.local_fire_department),
-                    statCard("Workout", "$totalWorkout min", Icons.fitness_center),
-                    statCard("Water", "${totalWater.toStringAsFixed(1)} L", Icons.water_drop),
-                  ],
-                ),
+              // Overwrite today's steps with live pedometer data if available
+              if (_pedometerStatus == 'tracking' && _todayLiveSteps > 0) {
+                 stepsData[6] = FlSpot(6, _todayLiveSteps.toDouble());
+              } else {
+                 _todayLiveSteps = stepsData[6].y.toInt(); // fallback to manual logs
+              }
 
-                const SizedBox(height: 24),
-
-                buildChart(stepsData, "Steps Progress", Icons.directions_walk),
-                buildChart(caloriesData, "Calories Burned", Icons.local_fire_department),
-                buildChart(workoutData, "Workout Minutes", Icons.fitness_center),
-                buildChart(waterData, "Water Intake", Icons.water_drop),
-
-                // Recent Activities Card without borders
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Recent Activities",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      docs.isEmpty
-                          ? const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 20),
-                              child: Center(
-                                child: Text(
-                                  "No activities logged yet.",
-                                  style: TextStyle(color: textMuted, fontSize: 13),
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: docs.length > 5 ? 5 : docs.length,
-                              itemBuilder: (context, index) {
-                                // Show in reverse order (newest first)
-                                final docIndex = docs.length - 1 - index;
-                                final data = docs[docIndex].data() as Map<String, dynamic>;
-                                return Column(
-                                  children: [
-                                    ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: CircleAvatar(
-                                        backgroundColor: primaryColor.withOpacity(0.12),
-                                        child: const Icon(Icons.flash_on, color: primaryColor, size: 20),
-                                      ),
-                                      title: Text(
-                                        data['workoutType'] ?? 'Workout',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
-                                      ),
-                                      subtitle: Text(
-                                        data['date'] ?? '',
-                                        style: const TextStyle(color: textMuted, fontSize: 12),
-                                      ),
-                                      trailing: Text(
-                                        "${(data['workoutMinutes'] ?? 0)} min",
-                                        style: const TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    if (index < (docs.length > 5 ? 4 : docs.length - 1))
-                                      const Divider(color: Colors.white10, height: 1),
-                                  ],
-                                );
-                              },
-                            ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              return TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildStepsTab(stepsData, dayLabels),
+                  _buildCaloriesTab(caloriesData, dayLabels, todayCalories),
+                  _buildWaterTab(waterData, dayLabels, todayWater),
+                  _buildProteinTab(proteinData, dayLabels, todayProtein),
+                ],
+              );
+            },
           );
         },
+      ),
+    );
+  }
+
+  // --- TABS ---
+  
+  Widget _buildStepsTab(List<FlSpot> data, List<String> labels) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        // Hero Section
+        Container(
+          height: 250,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.directions_run_rounded, size: 60, color: primaryColor.withOpacity(0.9)),
+              const SizedBox(height: 15),
+              Text(
+                "$_todayLiveSteps",
+                style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white),
+              ),
+              const Text("STEPS TODAY", style: TextStyle(color: primaryColor, letterSpacing: 2, fontWeight: FontWeight.bold)),
+              if (_pedometerStatus == 'unavailable' || _pedometerStatus == 'permission_denied')
+                 const Padding(
+                   padding: EdgeInsets.only(top: 8.0),
+                   child: Text("Hardware sensor unavailable - using manual logs", style: TextStyle(color: textMuted, fontSize: 10)),
+                 )
+              else
+                 const Padding(
+                   padding: EdgeInsets.only(top: 8.0),
+                   child: Text("Live tracking active 🟢", style: TextStyle(color: Colors.greenAccent, fontSize: 10)),
+                 )
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+        buildChart(data, "Steps History", Icons.show_chart, labels),
+      ],
+    );
+  }
+
+  Widget _buildWaterTab(List<FlSpot> data, List<String> labels, double todayWater) {
+    double goal = 3.0; // 3 Liters
+    double percent = (todayWater / goal).clamp(0.0, 1.0);
+    
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        // Hero Liquid Progress
+        SizedBox(
+          height: 250,
+          child: Center(
+            child: SizedBox(
+              height: 200, width: 200,
+              child: LiquidCircularProgressIndicator(
+                value: percent,
+                valueColor: const AlwaysStoppedAnimation(Color(0xFF2196F3)),
+                backgroundColor: cardColor,
+                borderColor: primaryColor,
+                borderWidth: 2.0,
+                direction: Axis.vertical,
+                center: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text("${todayWater.toStringAsFixed(1)}L", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const Text("of 3.0L", style: TextStyle(color: Colors.white70)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 30),
+        buildChart(data, "Water History (L)", Icons.water_drop, labels),
+      ],
+    );
+  }
+
+  Widget _buildCaloriesTab(List<FlSpot> data, List<String> labels, double todayCals) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Container(
+          height: 250,
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24)),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                height: 160, width: 160,
+                child: CircularProgressIndicator(
+                  value: (todayCals / 1000).clamp(0.0, 1.0),
+                  strokeWidth: 12,
+                  color: Colors.orangeAccent,
+                  backgroundColor: Colors.orangeAccent.withOpacity(0.1),
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 30),
+                  Text("${todayCals.toInt()}", style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const Text("KCAL BURNED", style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                ],
+              )
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+        buildChart(data, "Calories History", Icons.local_fire_department, labels),
+      ],
+    );
+  }
+
+  Widget _buildProteinTab(List<FlSpot> data, List<String> labels, double todayProtein) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Container(
+          height: 250,
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24)),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                height: 160, width: 160,
+                child: CircularProgressIndicator(
+                  value: (todayProtein / 150).clamp(0.0, 1.0),
+                  strokeWidth: 12,
+                  color: primaryColor,
+                  backgroundColor: primaryColor.withOpacity(0.1),
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.restaurant, color: primaryColor, size: 30),
+                  Text("${todayProtein.toInt()}g", style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const Text("PROTEIN", style: TextStyle(color: primaryColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                ],
+              )
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+        buildChart(data, "Protein History (g)", Icons.restaurant, labels),
+      ],
+    );
+  }
+
+  // --- CHART BUILDER ---
+  Widget buildChart(List<FlSpot> data, String title, IconData icon, List<String> dayLabels) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 12, offset: const Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: primaryColor, size: 20),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 180,
+            child: data.every((spot) => spot.y == 0)
+                ? const Center(child: Text("No data yet.", style: TextStyle(color: textMuted, fontSize: 13)))
+                : LineChart(
+                    LineChartData(
+                      backgroundColor: Colors.transparent,
+                      gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (_) => const FlLine(color: Colors.white10, strokeWidth: 0.8)),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              int idx = value.toInt();
+                              if (idx < 0 || idx >= dayLabels.length) return const SizedBox();
+                              return Padding(padding: const EdgeInsets.only(top: 8), child: Text(dayLabels[idx], style: const TextStyle(color: textMuted, fontSize: 9)));
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true, reservedSize: 34,
+                            getTitlesWidget: (value, meta) => Text(value.toStringAsFixed(0), style: const TextStyle(color: textMuted, fontSize: 9)),
+                          ),
+                        ),
+                      ),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: data, isCurved: true, color: primaryColor, barWidth: 3.5, dotData: const FlDotData(show: true),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [primaryColor.withOpacity(0.18), primaryColor.withOpacity(0.01)]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- LOG DIALOG ---
+  void _showAddLogDialog(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final workoutTypeController = TextEditingController();
+    final stepsController = TextEditingController();
+    final caloriesController = TextEditingController();
+    final workoutMinutesController = TextEditingController();
+    final waterController = TextEditingController();
+    final proteinController = TextEditingController(); // new
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(color: Color(0xFF0F1319), borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))),
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Log Activity ⚡", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 18),
+                      _buildDialogField("Steps Count", stepsController, Icons.directions_walk, keyboard: TextInputType.number),
+                      _buildDialogField("Calories Burned (kcal)", caloriesController, Icons.local_fire_department, keyboard: TextInputType.number),
+                      _buildDialogField("Water Intake (L)", waterController, Icons.water_drop_outlined, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+                      _buildDialogField("Protein (g)", proteinController, Icons.restaurant, keyboard: TextInputType.number),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity, height: 52,
+                        child: ElevatedButton(
+                          onPressed: isSaving ? null : () async {
+                            setDialogState(() => isSaving = true);
+                            try {
+                              final now = DateTime.now();
+                              final dateStr = '${now.day}/${now.month}/${now.year}';
+                              await _fitnessLogsRef.add({
+                                'steps': int.tryParse(stepsController.text.trim()) ?? 0,
+                                'caloriesBurned': int.tryParse(caloriesController.text.trim()) ?? 0,
+                                'waterIntake': double.tryParse(waterController.text.trim()) ?? 0.0,
+                                'date': dateStr, 'timestamp': FieldValue.serverTimestamp(), 'userId': _uid,
+                              });
+                              if (proteinController.text.isNotEmpty) {
+                                await _mealLogsRef.add({
+                                  'protein': int.tryParse(proteinController.text.trim()) ?? 0,
+                                  'date': dateStr, 'timestamp': FieldValue.serverTimestamp(), 'userId': _uid,
+                                  'mealName': 'Manual Log'
+                                });
+                              }
+                              if (mounted) Navigator.pop(context);
+                            } finally {
+                              if (mounted) setDialogState(() => isSaving = false);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: primaryColor, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                          child: isSaving ? const CircularProgressIndicator(color: Colors.black) : const Text("Save Log", style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  Widget _buildDialogField(String label, TextEditingController controller, IconData icon, {TextInputType keyboard = TextInputType.text}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(color: const Color(0xFF1B222C), borderRadius: BorderRadius.circular(14)),
+      child: TextFormField(
+        controller: controller, keyboardType: keyboard, style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(icon: Icon(icon, color: primaryColor, size: 20), hintText: label, hintStyle: const TextStyle(color: textMuted, fontSize: 14), border: InputBorder.none),
       ),
     );
   }

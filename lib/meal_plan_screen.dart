@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'data_store.dart';
 
 class MealPlan {
@@ -70,9 +72,37 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
     "Dinner"
   ];
 
-  void _addMeal(String type, MealPlan meal) {
+  void _addMeal(String type, MealPlan meal) async {
+    // Keep local DataStore update for dashboard display
     DataStore.addMeal(type, meal.name);
     DataStore.incrementStreak();
+
+    // Write meal to Firestore for Tracker integration
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        final now = DateTime.now();
+        final dateStr = '${now.day}/${now.month}/${now.year}';
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('meal_logs')
+            .add({
+          'mealType': type,
+          'mealName': meal.name,
+          'calories': int.tryParse(meal.calories) ?? 0,
+          'protein': int.tryParse(meal.protein) ?? 0,
+          'carbs': int.tryParse(meal.carbs) ?? 0,
+          'fat': int.tryParse(meal.fat) ?? 0,
+          'date': dateStr,
+          'timestamp': FieldValue.serverTimestamp(),
+          'userId': uid,
+        });
+      } catch (e) {
+        debugPrint('Error saving meal to Firestore: $e');
+      }
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

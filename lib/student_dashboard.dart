@@ -1,10 +1,88 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'data_store.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'meal_plan_screen.dart';
 import 'trackers_screen.dart';
 import 'workout_plans_screen.dart';
+
+class StreakLogic {
+  static Stream<QuerySnapshot> get mealLogsStream {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('meal_logs')
+        .snapshots();
+  }
+
+  static Map<String, dynamic> calculateStreak(List<QueryDocumentSnapshot> docs) {
+    final Set<String> loggedDates = {};
+    for (final doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['date'] != null) {
+        loggedDates.add(data['date'] as String);
+      }
+    }
+
+    int streak = 0;
+    DateTime checkDate = DateTime.now();
+    String todayStr = '${checkDate.day}/${checkDate.month}/${checkDate.year}';
+    bool hasToday = loggedDates.contains(todayStr);
+
+    if (hasToday) {
+      streak++;
+      checkDate = checkDate.subtract(const Duration(days: 1));
+      while (true) {
+        String dateStr = '${checkDate.day}/${checkDate.month}/${checkDate.year}';
+        if (loggedDates.contains(dateStr)) {
+          streak++;
+          checkDate = checkDate.subtract(const Duration(days: 1));
+        } else {
+          break;
+        }
+      }
+    } else {
+      checkDate = checkDate.subtract(const Duration(days: 1));
+      String yesterdayStr = '${checkDate.day}/${checkDate.month}/${checkDate.year}';
+      if (loggedDates.contains(yesterdayStr)) {
+        streak++;
+        checkDate = checkDate.subtract(const Duration(days: 1));
+        while (true) {
+          String dateStr = '${checkDate.day}/${checkDate.month}/${checkDate.year}';
+          if (loggedDates.contains(dateStr)) {
+            streak++;
+            checkDate = checkDate.subtract(const Duration(days: 1));
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    final now = DateTime.now();
+    final currentWeekday = now.weekday; 
+    final monday = now.subtract(Duration(days: currentWeekday - 1));
+    final weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+    List<Map<String, dynamic>> streakDays = [];
+    for (int i = 0; i < 7; i++) {
+      DateTime day = monday.add(Duration(days: i));
+      String dateStr = '${day.day}/${day.month}/${day.year}';
+      bool done = loggedDates.contains(dateStr);
+      streakDays.add({"day": weekDays[i], "done": done});
+    }
+
+    return {
+      "streak": streak,
+      "streakDays": streakDays,
+    };
+  }
+}
+
 
 // ── Design tokens (shared across all widgets in this file) ─────
 const _bg        = Color(0xFF0D0D0D);
@@ -395,10 +473,12 @@ class DashboardHome extends StatelessWidget {
                   style: TextStyle(color: _hint, fontSize: 12),
                 ),
                 const SizedBox(height: 14),
-                // Progress — uses original ValueListenableBuilder + DataStore logic
-                ValueListenableBuilder<int>(
-                  valueListenable: DataStore.streakCount,
-                  builder: (context, streak, _) {
+                StreamBuilder<QuerySnapshot>(
+                  stream: StreakLogic.mealLogsStream,
+                  builder: (context, snapshot) {
+                    final docs = snapshot.hasData ? snapshot.data!.docs : [];
+                    final streakData = StreakLogic.calculateStreak(docs.cast<QueryDocumentSnapshot>());
+                    final streak = streakData["streak"] as int;
                     final progress = (streak % 7) / 7;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -493,17 +573,22 @@ class DashboardHome extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            ValueListenableBuilder<int>(
-              valueListenable: DataStore.streakCount,
-              builder: (_, streak, __) => Text(
-                "$streak 🔥",
-                style: const TextStyle(
-                  color: _accent,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  height: 1.1,
-                ),
-              ),
+            StreamBuilder<QuerySnapshot>(
+              stream: StreakLogic.mealLogsStream,
+              builder: (_, snapshot) {
+                final docs = snapshot.hasData ? snapshot.data!.docs : [];
+                final streakData = StreakLogic.calculateStreak(docs.cast<QueryDocumentSnapshot>());
+                final streak = streakData["streak"] as int;
+                return Text(
+                  "$streak 🔥",
+                  style: const TextStyle(
+                    color: _accent,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 4),
             const Text(
@@ -763,52 +848,33 @@ class DashboardHome extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// StreaksScreen — logic 100% unchanged, UI reskinned
+// StreaksScreen — logic updated to Firestore meal logs
 // ══════════════════════════════════════════════════════════════
-class StreaksScreen extends StatefulWidget {
+class StreaksScreen extends StatelessWidget {
   const StreaksScreen({super.key});
 
-  @override
-  State<StreaksScreen> createState() => _StreaksScreenState();
-}
+  final List<Map<String, dynamic>> customRewards = const [
+    {"milestone": 3, "title": "Eat a slice of cake! 🍰"},
+    {"milestone": 7, "title": "Cheat Meal Time! 🍔"},
+    {"milestone": 14, "title": "Ice Cream Day! 🍦"},
+    {"milestone": 30, "title": "Pizza Night! 🍕"},
+  ];
 
-class _StreaksScreenState extends State<StreaksScreen> {
-  final List<int> milestones = const [50, 100, 200, 365];
-  late List<Map<String, dynamic>> streakDays;
-
-  @override
-  void initState() {
-    super.initState();
-    _updateStreakDays();
-  }
-
-  // Original logic unchanged
-  void _updateStreakDays() {
-    final now = DateTime.now();
-    final weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    final todayIndex = now.weekday - 1;
-
-    streakDays = List.generate(7, (index) {
-      bool done = false;
-      if (DataStore.streakCount.value > 0 && index <= todayIndex) {
-        done = true;
-      }
-      return {"day": weekDays[index], "done": done};
-    });
-  }
-
-  List<int> _getAchievedRewards(int streak) {
-    return milestones.where((milestone) => streak >= milestone).toList();
+  List<Map<String, dynamic>> _getAchievedRewards(int streak) {
+    return customRewards.where((reward) => streak >= (reward["milestone"] as int)).toList();
   }
 
   int _nextMilestone(int streak) {
-    return milestones.firstWhere((m) => m > streak, orElse: () => -1);
+    for (var r in customRewards) {
+      if ((r["milestone"] as int) > streak) {
+        return r["milestone"] as int;
+      }
+    }
+    return -1;
   }
 
   @override
   Widget build(BuildContext context) {
-    _updateStreakDays();
-
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -833,13 +899,21 @@ class _StreaksScreenState extends State<StreaksScreen> {
           child: Container(height: 1, color: const Color(0xFF1E1E1E)),
         ),
       ),
-      body: ValueListenableBuilder<int>(
-        valueListenable: DataStore.streakCount,
-        builder: (context, streak, _) {
+      body: StreamBuilder<QuerySnapshot>(
+        stream: StreakLogic.mealLogsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: _accent));
+          }
+
+          final docs = snapshot.hasData ? snapshot.data!.docs : [];
+          final streakData = StreakLogic.calculateStreak(docs.cast<QueryDocumentSnapshot>());
+          final streak = streakData["streak"] as int;
+          final streakDays = streakData["streakDays"] as List<Map<String, dynamic>>;
+
           final achievedRewards = _getAchievedRewards(streak);
           final next = _nextMilestone(streak);
-          final weekProgress = streakDays.where((d) => d["done"] as bool).length /
-              streakDays.length;
+          final weekProgress = streakDays.where((d) => d["done"] as bool).length / streakDays.length;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -939,7 +1013,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                 ),
                 const SizedBox(height: 10),
 
-                // ── Weekly streak grid (original logic) ────────
+                // ── Weekly streak grid ────────
                 GridView.builder(
                   shrinkWrap: true,
                   itemCount: streakDays.length,
@@ -1053,7 +1127,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Rewards earned (original logic) ───────────
+                // ── Rewards earned ───────────
                 const Text(
                   "Rewards Earned",
                   style: TextStyle(
@@ -1080,7 +1154,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                     : Wrap(
                   spacing: 10,
                   runSpacing: 10,
-                  children: achievedRewards.map((days) {
+                  children: achievedRewards.map((reward) {
                     return Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 8),
@@ -1101,7 +1175,7 @@ class _StreaksScreenState extends State<StreaksScreen> {
                               color: Color(0xFFE8A435), size: 16),
                           const SizedBox(width: 6),
                           Text(
-                            "$days-Day Streak",
+                            reward["title"] as String,
                             style: const TextStyle(
                               color: _accent,
                               fontSize: 12,

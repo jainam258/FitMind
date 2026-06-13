@@ -74,7 +74,7 @@ class _IntroScreenState extends State<IntroScreen> {
                       const Text(
                         "FITMIND",
                         style: TextStyle(
-                          color: Color(0xFFD9FF3F),
+                          color: Color(0xFFE8F535),
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 3,
@@ -104,7 +104,7 @@ class _IntroScreenState extends State<IntroScreen> {
                       const Color(0xFF1E2530),
                       valueColor:
                       const AlwaysStoppedAnimation(
-                        Color(0xFFD9FF3F),
+                        Color(0xFFE8F535),
                       ),
                     ),
                   ),
@@ -137,15 +137,15 @@ class _IntroScreenState extends State<IntroScreen> {
                             gradient:
                             const LinearGradient(
                               colors: [
-                                Color(0xFFD9FF3F),
-                                Color(0xFFB8F92E),
+                                Color(0xFFE8F535),
+                                Color(0xFFE8F535),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color:
                                 const Color(
-                                  0xFFD9FF3F,
+                                  0xFFE8F535,
                                 ).withOpacity(0.25),
                                 blurRadius: 30,
                                 spreadRadius: 4,
@@ -239,7 +239,7 @@ class _IntroScreenState extends State<IntroScreen> {
                                         BoxDecoration(
                                           color:
                                           const Color(
-                                            0xFFD9FF3F,
+                                            0xFFE8F535 ,
                                           ),
                                           borderRadius:
                                           BorderRadius
